@@ -9,59 +9,27 @@ using namespace libsnark;
 using namespace std;
 
 template<typename ppT>
-bool driver_bn() {
+void simple_test(){
 
-    libff::GT<ppT> a;
+    libff::G1<ppT> g1;
+    libff::G2<ppT> g2;
+    libff::GT<ppT> gt, a;
 
-    // e(Identity, all elements) = Identity
-    a = ppT::reduced_pairing(libff::G1<ppT>::zero(), libff::Fr<ppT>::random_element() * libff::G2<ppT>::one());
-    if (a == libff::GT<ppT>::one()) cout << "1. IDENTITY" << endl;
-    else cout <<"1. " << endl;
+    g1 = libff::G1<ppT>::zero();
+    g2 = libff::G2<ppT>::random_element();
+    gt = libff::GT<ppT>::one();
 
-    // e(all elements, Identity) = Identity
-    a = ppT::reduced_pairing(libff::Fr<ppT>::random_element() * libff::G1<ppT>::one(), libff::G2<ppT>::zero());
-    if (a == libff::GT<ppT>::one()) cout << "2. IDENTITY" << endl;
-    else cout <<"2. " << endl;
+    a = ppT::reduced_pairing(g1, g2);
+    cout << "e(0, any) == 1 " << (a == gt ? "TRUE" : "FALSE") << endl;
 
-    // e(Identity, Identity) = Identity
-    a = ppT::reduced_pairing(libff::G1<ppT>::zero(), libff::G2<ppT>::zero());
-    if (a == libff::GT<ppT>::one()) cout << "3. IDENTITY" << endl;
-    else cout <<"3. " << endl;
+    g1 = libff::G1<ppT>::random_element();
+    g2 = libff::G2<ppT>::zero();
+    gt = libff::GT<ppT>::one();
 
-    // else if (a == libff::GT<ppT>::zero()) cout <<"1. ZERO" << endl;
-    // else if (a == libff::GT<ppT>::zero()) cout <<"2. ZERO" << endl;
-    // else if (a == libff::GT<ppT>::zero()) cout <<"3. ZERO" << endl;
+    a = ppT::reduced_pairing(g1, g2);
+    cout << "e(any, 0) == 1 " << (a == gt ? "TRUE" : "FALSE") << endl;
+    // return 0;
 
-
-
-    return 0;
-}
-
-template <typename ppT>
-bool driver_mnt() {
-
-
-    libff::GT<ppT> a;
-
-    // e(Identity, all elements) = Identity
-    a = ppT::reduced_pairing(libff::G1<ppT>::zero(), libff::Fr<ppT>::random_element() * libff::G2<ppT>::one());
-    if (a == libff::GT<ppT>::one()) cout << "1. IDENTITY" << endl;
-    else if (a == libff::GT<ppT>::zero()) cout <<"1. ZERO" << endl;
-    else cout <<"1. " << endl;
-
-    // e(all elements, Identity) = Identity
-    a = ppT::reduced_pairing(libff::Fr<ppT>::random_element() * libff::G1<ppT>::one(), libff::G2<ppT>::zero());
-    if (a == libff::GT<ppT>::one()) cout << "2. IDENTITY" << endl;
-    else if (a == libff::GT<ppT>::zero()) cout <<"2. ZERO" << endl;
-    else cout <<"2. " << endl;
-
-    // e(Identity, Identity) = Identity
-    a = ppT::reduced_pairing(libff::G1<ppT>::zero(), libff::G2<ppT>::zero());
-    if (a == libff::GT<ppT>::one()) cout << "3. IDENTITY" << endl;
-    else if (a == libff::GT<ppT>::zero()) cout <<"3. ZERO" << endl;
-    else cout <<"3. " << endl;
-
-    return 0;
 }
 
 
@@ -135,28 +103,32 @@ int main () {
     libff::inhibit_profiling_info = true;
     libff::inhibit_profiling_counters = true;
 
+    puts("SIMPLE");
+
+#ifdef CURVE_BN128
     libff::bn128_pp::init_public_params();
+    cout << "BN128" << endl;
+    simple_test<libff::bn128_pp>();
+    // puts("BRUTE FORCE: CURVE_BN128");
+    // brute_bn<libff::bn128_pp>();
+#endif
+
+#ifdef CURVE_MNT4
     libff::mnt4_pp::init_public_params();
+    cout << "MNT4" << endl;
+    simple_test<libff::mnt4_pp>();
+    // puts("BRUTE FORCE: CURVE_MNT4");
+    // brute_mnt<libff::mnt4_pp>();
+#endif
+
+#ifdef CURVE_MNT6
     libff::mnt6_pp::init_public_params();
+    cout << "MNT6" << endl;
+    simple_test<libff::mnt6_pp>();
+    // puts("BRUTE FORCE: CURVE_MNT6");
+    // brute_mnt<libff::mnt6_pp>();
 
-    // puts("CURVE_BN128");
-    // driver_bn<libff::bn128_pp>();
-
-    // puts("CURVE_MNT4");
-    // driver_mnt<libff::mnt4_pp>();
-
-    // puts("CURVE_MNT6");
-    // driver_mnt<libff::mnt6_pp>();
-
-    puts("BRUTE FORCE: CURVE_BN128");
-    brute_bn<libff::bn128_pp>();
-
-    puts("BRUTE FORCE: CURVE_MNT4");
-    brute_mnt<libff::mnt4_pp>();
-
-    puts("BRUTE FORCE: CURVE_MNT6");
-    brute_mnt<libff::mnt6_pp>();
-
+#endif
 
     return 0;
 }

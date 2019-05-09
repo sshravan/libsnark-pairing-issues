@@ -1,59 +1,162 @@
 #include <libff/common/default_types/ec_pp.hpp>
+#include <libff/algebra/curves/bn128/bn128_pp.hpp>
+#include <libff/algebra/curves/mnt/mnt4/mnt4_pp.hpp>
+#include <libff/algebra/curves/mnt/mnt6/mnt6_pp.hpp>
 #include <libsnark/common/default_types/r1cs_gg_ppzksnark_pp.hpp>
-#include <libsnark/relations/constraint_satisfaction_problems/r1cs/examples/r1cs_examples.hpp>
-#include <libsnark/zk_proof_systems/ppzksnark/r1cs_gg_ppzksnark/r1cs_gg_ppzksnark.hpp>
+#include <libff/common/profiling.hpp>
 
 using namespace libsnark;
-
-/**
- * The code below provides an example of all stages of running a R1CS GG-ppzkSNARK.
- *
- * Of course, in a real-life scenario, we would have three distinct entities,
- * mangled into one in the demonstration below. The three entities are as follows.
- * (1) The "generator", which runs the ppzkSNARK generator on input a given
- *     constraint system CS to create a proving and a verification key for CS.
- * (2) The "prover", which runs the ppzkSNARK prover on input the proving key,
- *     a primary input for CS, and an auxiliary input for CS.
- * (3) The "verifier", which runs the ppzkSNARK verifier on input the verification key,
- *     a primary input for CS, and a proof.
- */
-template<typename ppT>
-bool run_r1cs_gg_ppzksnark(const r1cs_example<libff::Fr<ppT> > &example)
-{
-    libff::print_header("R1CS GG-ppzkSNARK Generator");
-    r1cs_gg_ppzksnark_keypair<ppT> keypair = r1cs_gg_ppzksnark_generator<ppT>(example.constraint_system);
-    printf("\n"); libff::print_indent(); libff::print_mem("after generator");
-
-    libff::print_header("Preprocess verification key");
-    r1cs_gg_ppzksnark_processed_verification_key<ppT> pvk = r1cs_gg_ppzksnark_verifier_process_vk<ppT>(keypair.vk);
-
-    libff::print_header("R1CS GG-ppzkSNARK Prover");
-    r1cs_gg_ppzksnark_proof<ppT> proof = r1cs_gg_ppzksnark_prover<ppT>(keypair.pk, example.primary_input, example.auxiliary_input);
-    printf("\n"); libff::print_indent(); libff::print_mem("after prover");
-
-    libff::print_header("R1CS GG-ppzkSNARK Verifier");
-    const bool ans = r1cs_gg_ppzksnark_verifier_strong_IC<ppT>(keypair.vk, example.primary_input, proof);
-    printf("\n"); libff::print_indent(); libff::print_mem("after verifier");
-    printf("* The verification result is: %s\n", (ans ? "PASS" : "FAIL"));
-
-    libff::print_header("R1CS GG-ppzkSNARK Online Verifier");
-    const bool ans2 = r1cs_gg_ppzksnark_online_verifier_strong_IC<ppT>(pvk, example.primary_input, proof);
-    assert(ans == ans2);
-
-    return ans;
-}
+using namespace std;
 
 template<typename ppT>
-void test_r1cs_gg_ppzksnark(size_t num_constraints, size_t input_size)
-{
-    r1cs_example<libff::Fr<ppT> > example = generate_r1cs_example_with_binary_input<libff::Fr<ppT> >(num_constraints, input_size);
-    const bool bit = run_r1cs_gg_ppzksnark<ppT>(example);
-    assert(bit);
+bool driver_bn() {
+
+    libff::GT<ppT> a;
+
+    // e(Identity, all elements) = Identity
+    a = ppT::reduced_pairing(libff::G1<ppT>::zero(), libff::Fr<ppT>::random_element() * libff::G2<ppT>::one());
+    if (a == libff::GT<ppT>::one()) cout << "1. IDENTITY" << endl;
+    else cout <<"1. " << endl;
+
+    // e(all elements, Identity) = Identity
+    a = ppT::reduced_pairing(libff::Fr<ppT>::random_element() * libff::G1<ppT>::one(), libff::G2<ppT>::zero());
+    if (a == libff::GT<ppT>::one()) cout << "2. IDENTITY" << endl;
+    else cout <<"2. " << endl;
+
+    // e(Identity, Identity) = Identity
+    a = ppT::reduced_pairing(libff::G1<ppT>::zero(), libff::G2<ppT>::zero());
+    if (a == libff::GT<ppT>::one()) cout << "3. IDENTITY" << endl;
+    else cout <<"3. " << endl;
+
+    // else if (a == libff::GT<ppT>::zero()) cout <<"1. ZERO" << endl;
+    // else if (a == libff::GT<ppT>::zero()) cout <<"2. ZERO" << endl;
+    // else if (a == libff::GT<ppT>::zero()) cout <<"3. ZERO" << endl;
+
+
+
+    return 0;
 }
+
+template <typename ppT>
+bool driver_mnt() {
+
+
+    libff::GT<ppT> a;
+
+    // e(Identity, all elements) = Identity
+    a = ppT::reduced_pairing(libff::G1<ppT>::zero(), libff::Fr<ppT>::random_element() * libff::G2<ppT>::one());
+    if (a == libff::GT<ppT>::one()) cout << "1. IDENTITY" << endl;
+    else if (a == libff::GT<ppT>::zero()) cout <<"1. ZERO" << endl;
+    else cout <<"1. " << endl;
+
+    // e(all elements, Identity) = Identity
+    a = ppT::reduced_pairing(libff::Fr<ppT>::random_element() * libff::G1<ppT>::one(), libff::G2<ppT>::zero());
+    if (a == libff::GT<ppT>::one()) cout << "2. IDENTITY" << endl;
+    else if (a == libff::GT<ppT>::zero()) cout <<"2. ZERO" << endl;
+    else cout <<"2. " << endl;
+
+    // e(Identity, Identity) = Identity
+    a = ppT::reduced_pairing(libff::G1<ppT>::zero(), libff::G2<ppT>::zero());
+    if (a == libff::GT<ppT>::one()) cout << "3. IDENTITY" << endl;
+    else if (a == libff::GT<ppT>::zero()) cout <<"3. ZERO" << endl;
+    else cout <<"3. " << endl;
+
+    return 0;
+}
+
+
+template <typename ppT>
+bool brute_bn() {
+
+
+    string label1[] = {"0", "1", "27"};
+    vector<libff::G1<ppT> > g1{libff::G1<ppT>::zero(), libff::G1<ppT>::one(), libff::Fr<ppT>(label1[2].c_str()) * libff::G1<ppT>::one()};
+    // vector<libff::G1<ppT> > g1{libff::G1<ppT>::zero(), libff::G1<ppT>::one(), libff::G1<ppT>::random_element()};
+
+    string label2[] = {"0", "1", "81"};
+    vector<libff::G2<ppT> > g2{libff::G2<ppT>::zero(), libff::G2<ppT>::one(), libff::Fr<ppT>(label2[2].c_str()) * libff::G2<ppT>::one()};
+    // vector<libff::G2<ppT> > g2{libff::G2<ppT>::zero(), libff::G2<ppT>::one(), libff::G2<ppT>::random_element()};
+
+    string labelt[] = {"1"};
+    vector<libff::GT<ppT> > gt{libff::GT<ppT>::one()};
+
+    libff::GT<ppT> a;
+
+    for (size_t i = 0; i < g1.size(); ++i){
+        for (size_t j = 0; j < g2.size(); ++j){
+            for (size_t k = 0; k < gt.size(); ++k){
+                a = ppT::reduced_pairing(g1[i], g2[j]);
+                cout << "e(" << label1[i] << ", " << label2[j] << ") == " << labelt[k] << " " << (a == gt[k] ? "TRUE" : "FALSE") << endl;
+            }
+            cout << endl;
+        }
+    }
+
+    // a = ppT::reduced_pairing(libff::G1<ppT>::zero(), libff::Fr<ppT>::random_element() * libff::G2<ppT>::one());
+    // a = ppT::reduced_pairing(libff::G1<ppT>::zero(), libff::Fr<ppT>::random_element() * libff::G2<ppT>::one());
+
+    return 0;
+}
+
+template <typename ppT>
+bool brute_mnt() {
+
+
+    string label1[] = {"0", "1", "27"};
+    vector<libff::G1<ppT> > g1{libff::G1<ppT>::zero(), libff::G1<ppT>::one(), libff::Fr<ppT>(label1[2].c_str()) * libff::G1<ppT>::one()};
+
+    string label2[] = {"0", "1", "81"};
+    vector<libff::G2<ppT> > g2{libff::G2<ppT>::zero(), libff::G2<ppT>::one(), libff::Fr<ppT>(label2[2].c_str()) * libff::G2<ppT>::one()};
+
+    string labelt[] = {"0", "1", "49"};
+    vector<libff::GT<ppT> > gt{libff::GT<ppT>::zero(), libff::GT<ppT>::one(), libff::GT<ppT>::random_element()};
+
+    libff::GT<ppT> a;
+
+    for (size_t i = 0; i < g1.size(); ++i){
+        for (size_t j = 0; j < g2.size(); ++j){
+            for (size_t k = 0; k < gt.size(); ++k){
+                a = ppT::reduced_pairing(g1[i], g2[j]);
+                cout << "e(" << label1[i] << ", " << label2[j] << ") == " << labelt[k] << " " << (a == gt[k] ? "TRUE" : "FALSE") << endl;
+            }
+            cout << endl;
+        }
+    }
+
+    // a = ppT::reduced_pairing(libff::G1<ppT>::zero(), libff::Fr<ppT>::random_element() * libff::G2<ppT>::one());
+    // a = ppT::reduced_pairing(libff::G1<ppT>::zero(), libff::Fr<ppT>::random_element() * libff::G2<ppT>::one());
+
+    return 0;
+}
+
 
 int main () {
-    default_r1cs_gg_ppzksnark_pp::init_public_params();
-    test_r1cs_gg_ppzksnark<default_r1cs_gg_ppzksnark_pp>(1000, 100);
+
+    libff::inhibit_profiling_info = true;
+    libff::inhibit_profiling_counters = true;
+
+    libff::bn128_pp::init_public_params();
+    libff::mnt4_pp::init_public_params();
+    libff::mnt6_pp::init_public_params();
+
+    // puts("CURVE_BN128");
+    // driver_bn<libff::bn128_pp>();
+
+    // puts("CURVE_MNT4");
+    // driver_mnt<libff::mnt4_pp>();
+
+    // puts("CURVE_MNT6");
+    // driver_mnt<libff::mnt6_pp>();
+
+    puts("BRUTE FORCE: CURVE_BN128");
+    brute_bn<libff::bn128_pp>();
+
+    puts("BRUTE FORCE: CURVE_MNT4");
+    brute_mnt<libff::mnt4_pp>();
+
+    puts("BRUTE FORCE: CURVE_MNT6");
+    brute_mnt<libff::mnt6_pp>();
+
 
     return 0;
 }
